@@ -19,6 +19,16 @@ const speak = (handlerInput: HandlerInput, speech: string, reprompt?: string) =>
   return response.getResponse();
 };
 
+const alexaSafe = (text: string) => text
+  .replace(/```[\s\S]*?```/g, ' ')
+  .replace(/https?:\/\/\S+/g, ' ')
+  .replace(/[*_~`#]/g, '')
+  .replace(/[<>]/g, ' ')
+  .replace(/&(?!(amp|lt|gt|quot|apos);)/g, ' e ')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .slice(0, 1600);
+
 const LaunchHandler: RequestHandler = {
   canHandle: (input) => input.requestEnvelope.request.type === 'LaunchRequest',
   handle: (input) => speak(input, 'Olá, eu sou o Vicky. O que você quer saber?', 'Diga, por exemplo: Vicky, qual é a previsão do tempo?'),
@@ -42,13 +52,15 @@ const AskHermesHandler: RequestHandler = {
           messages: [{role: 'user', content: query}],
           stream: false,
         }),
-        signal: AbortSignal.timeout(25000),
+        // Alexa expects a response within a few seconds. Return a valid
+        // fallback instead of letting the HTTPS request time out.
+        signal: AbortSignal.timeout(6500),
       });
       if (!response.ok) throw new Error(`Hermes returned ${response.status}`);
       const data = await response.json() as {choices?: Array<{message?: {content?: string}}>};
       const answer = data.choices?.[0]?.message?.content?.trim();
       if (!answer) throw new Error('Empty Hermes response');
-      return speak(input, answer.slice(0, 7800));
+      return speak(input, alexaSafe(answer));
     } catch (error) {
       console.error('Hermes request failed', error);
       return speak(input, 'Não consegui falar com o Vicky agora. Tente novamente em alguns segundos.');
