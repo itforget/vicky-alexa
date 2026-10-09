@@ -14,8 +14,8 @@ const hermesUrl = (process.env.HERMES_API_URL ?? 'http://127.0.0.1:8642').replac
 const hermesKey = process.env.HERMES_API_KEY;
 
 const speak = (handlerInput: HandlerInput, speech: string, reprompt?: string) => {
-  const response = handlerInput.responseBuilder.speak(speech);
-  if (reprompt) response.reprompt(reprompt);
+  const response = handlerInput.responseBuilder.speak(speech).withShouldEndSession(false);
+  response.reprompt(reprompt ?? 'O que mais você quer saber?');
   return response.getResponse();
 };
 

@@ -1,7 +1,7 @@
 {
   "interactionModel": {
     "languageModel": {
-      "invocationName": "vicky",
+      "invocationName": "assistente vicky",
       "intents": [
         {
           "name": "AskHermesIntent",
@@ -15,12 +15,30 @@
             "{query}",
             "pergunte ao Vicky {query}",
             "diga ao Vicky {query}",
-            "quero saber {query}"
+            "quero saber {query}",
+            "me diga {query}",
+            "responda {query}",
+            "qual é {query}",
+            "o que é {query}",
+            "como está {query}"
           ]
         },
-        {"name": "AMAZON.HelpIntent", "samples": []},
-        {"name": "AMAZON.StopIntent", "samples": []},
-        {"name": "AMAZON.CancelIntent", "samples": []}
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        }
       ],
       "types": []
     }
