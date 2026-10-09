@@ -1,0 +1,28 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "vicky",
+      "intents": [
+        {
+          "name": "AskHermesIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "{query}",
+            "pergunte ao Vicky {query}",
+            "diga ao Vicky {query}",
+            "quero saber {query}"
+          ]
+        },
+        {"name": "AMAZON.HelpIntent", "samples": []},
+        {"name": "AMAZON.StopIntent", "samples": []},
+        {"name": "AMAZON.CancelIntent", "samples": []}
+      ],
+      "types": []
+    }
+  }
+}

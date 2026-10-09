@@ -1,0 +1,39 @@
+{
+  "manifest": {
+    "publishingInformation": {
+      "locales": {
+        "pt-BR": {
+          "name": "Vicky",
+          "summary": "Converse com seu assistente pessoal Vicky.",
+          "description": "Conecte uma Alexa à sua instância do Hermes Agent.",
+          "examplePhrases": [
+            "Alexa, abrir Vicky",
+            "Alexa, perguntar ao Vicky qual é a situação do VendaFácil",
+            "Alexa, pedir ao Vicky para resumir meu dia"
+          ],
+          "keywords": ["assistente", "produtividade", "Vicky", "Hermes"]
+        }
+      },
+      "isAvailableWorldwide": false,
+      "testingInstructions": "Use a conta do proprietário do endpoint para testar.",
+      "category": "PRODUCTIVITY",
+      "distributionCountries": []
+    },
+    "apis": {
+      "custom": {
+        "endpoint": {
+          "uri": "https://Vicky.devitalo.online/alexa"
+        },
+        "locales": {
+          "pt-BR": {}
+        }
+      }
+    },
+    "manifestVersion": "1.0",
+    "privacyAndCompliance": {
+      "containsAds": false,
+      "isExportCompliant": true,
+      "usesPersonalInfo": false
+    }
+  }
+}
