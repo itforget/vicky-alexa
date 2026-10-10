@@ -7,9 +7,12 @@ const VALID = {
 };
 
 function encodePacket(id, type, body) {
-  const payload = Buffer.from(`${id}\0${type}\0${body}\0`, 'utf8');
-  const packet = Buffer.alloc(4 + payload.length);
-  packet.writeInt32LE(payload.length, 0); payload.copy(packet, 4);
+  const payload = Buffer.from(body, 'utf8');
+  const packet = Buffer.alloc(14 + payload.length);
+  packet.writeInt32LE(10 + payload.length, 0);
+  packet.writeInt32LE(id, 4);
+  packet.writeInt32LE(type, 8);
+  payload.copy(packet, 12);
   return packet;
 }
 
@@ -32,15 +35,25 @@ export class RconClient {
     return new Promise((resolve, reject) => {
       const packet = encodePacket(id, type, body);
       let data = Buffer.alloc(0);
+      const cleanup = () => { clearTimeout(timer); this.socket?.off('data', onData); this.socket?.off('error', onError); };
+      const onError = (error) => { cleanup(); reject(error); };
+      const timer = setTimeout(() => { cleanup(); this.close(); reject(new Error('RCON response timeout')); }, this.timeoutMs);
       const onData = (chunk) => {
         data = Buffer.concat([data, chunk]);
-        if (data.length < 4 || data.readInt32LE(0) + 4 > data.length) return;
-        const length = data.readInt32LE(0); const payload = data.subarray(4, 4 + length);
-        this.socket.off('data', onData); const responseId = payload.readInt32LE(0);
-        if (responseId !== id) return reject(new Error('Unexpected RCON response'));
-        resolve(payload.subarray(12, payload.length - 2).toString('utf8'));
+        while (data.length >= 4) {
+          const length = data.readInt32LE(0);
+          if (length < 10 || length > 1048576) return onError(new Error('Invalid RCON frame'));
+          if (data.length < length + 4) return;
+          const payload = data.subarray(4, 4 + length);
+          data = data.subarray(length + 4);
+          const responseId = payload.readInt32LE(0);
+          const responseType = payload.readInt32LE(4);
+          if (responseId === -1) return onError(new Error('RCON authentication failed'));
+          if (responseId !== id || (type === 3 && responseType !== 2)) continue;
+          cleanup(); resolve(payload.subarray(8, payload.length - 2).toString('utf8')); return;
+        }
       };
-      this.socket.on('data', onData); this.socket.once('error', reject); this.socket.write(packet);
+      this.socket.on('data', onData); this.socket.once('error', onError); this.socket.write(packet);
     });
   }
   async execute(command) {
