@@ -1,89 +1,72 @@
 import mineflayer from 'mineflayer';
 import pathfinderPackage from 'mineflayer-pathfinder';
-const { pathfinder, Movements, goals } = pathfinderPackage;
+import { parseChatCommand } from './commands.js';
+import { BotController } from './controller.js';
+import { createControlServer } from './control-api.js';
+import { RconClient } from './rcon.js';
+import { configureSafeMovements } from './movement.js';
 
+const { pathfinder, Movements, goals } = pathfinderPackage;
 const host = process.env.MC_HOST ?? '161.97.115.217';
 const port = Number(process.env.MC_PORT ?? 25565);
 const username = process.env.BOT_USERNAME ?? 'Vicky';
-const owner = (process.env.OWNER_USERNAME ?? '').toLowerCase();
+const owner = (process.env.OWNER_USERNAME ?? 'itforget').toLowerCase();
 const reconnectMs = Number(process.env.RECONNECT_MS ?? 10000);
+const controlPort = Number(process.env.CONTROL_API_PORT ?? 3000);
 
 let bot;
-let movements;
-let followTarget;
+let controller;
+let controlServer;
+let rcon;
 
-function say(message) {
-  if (bot?.player) bot.chat(String(message).slice(0, 240));
+function say(message) { if (bot?.player) bot.chat(String(message).slice(0, 240)); }
+
+function startControlApi() {
+  if (!process.env.CONTROL_API_KEY) { console.warn('CONTROL_API_KEY is not set; HTTP control API is disabled.'); return; }
+  controlServer = createControlServer({
+    apiKey: process.env.CONTROL_API_KEY,
+    getStatus: () => controller?.status() ?? { online: false },
+    executeCommand: async (command) => {
+      if (['time', 'weather', 'difficulty', 'teleport', 'whitelist'].includes(command.type)) {
+        if (!rcon) throw new Error('RCON is not configured.');
+        return rcon.execute(command);
+      }
+      return controller.execute(command);
+    }
+  });
+  controlServer.listen(controlPort, '0.0.0.0', () => console.log(`Control API listening on port ${controlPort}`));
 }
 
 function connect() {
-  bot = mineflayer.createBot({
-    host,
-    port,
-    username,
-    version: false,
-    auth: 'offline',
-    checkTimeoutInterval: 60000,
-  });
+  bot = mineflayer.createBot({ host, port, username, version: false, auth: 'offline', checkTimeoutInterval: 60000 });
   bot.loadPlugin(pathfinder);
-
+  controller = new BotController({ bot, goals, say, host, port });
   bot.once('spawn', () => {
-    movements = new Movements(bot);
+    const movements = configureSafeMovements(new Movements(bot));
     bot.pathfinder.setMovements(movements);
     say('Estou online. Use "Vicky ajuda" para ver meus comandos.');
   });
-
-  bot.on('chat', (sender, message) => {
+  bot.on('entitySpawn', entity => controller.onEntitySpawn(entity));
+  bot.on('chat', async (sender, message) => {
     if (sender === bot.username) return;
-    const parts = message.trim().split(/\s+/);
-    if (parts.length === 0 || parts[0].toLowerCase() !== 'vicky') return;
-    const command = (parts[1] ?? 'ajuda').toLowerCase();
-    const targetName = parts[2] || sender;
-
-    if (owner && sender.toLowerCase() !== owner) {
-      say(`${sender}, só aceito comandos do meu dono.`);
-      return;
-    }
-
-    if (command === 'ajuda') {
-      say('Comandos: Vicky siga [jogador], Vicky pare, Vicky venha, Vicky status.');
-      return;
-    }
-    if (command === 'siga' || command === 'segue') {
-      const target = bot.players[targetName]?.entity;
-      if (!target) return say(`Não encontrei ${targetName}.`);
-      followTarget = targetName;
-      bot.pathfinder.setGoal(new goals.GoalFollow(target, 2), true);
-      say(`Vou seguir ${targetName}.`);
-      return;
-    }
-    if (command === 'pare' || command === 'parar') {
-      followTarget = undefined;
-      bot.pathfinder.setGoal(null);
-      say('Parei.');
-      return;
-    }
-    if (command === 'venha' || command === 'vem') {
-      const target = bot.players[sender]?.entity;
-      if (!target) return say('Não consigo localizar você agora.');
-      followTarget = sender;
-      bot.pathfinder.setGoal(new goals.GoalFollow(target, 2), true);
-      say('Estou indo.');
-      return;
-    }
-    if (command === 'status') {
-      say(`Online em ${host}:${port}${followTarget ? `, seguindo ${followTarget}` : ''}.`);
-      return;
-    }
-    say('Não conheço esse comando. Diga Vicky ajuda.');
+    const command = parseChatCommand(message, username);
+    if (!command) return;
+    if (owner && sender.toLowerCase() !== owner) { say(`${sender}, só aceito comandos do meu dono.`); return; }
+    if (command.requiresConfirmation) { say('Esse trabalho exige autorização explícita pela API HTTP autenticada.'); return; }
+    try {
+      if (command.type === 'help') return say('Comandos: siga [jogador], pare, venha, proteja, encontre diamantes, status. Coleta/construção: API autenticada com confirmação.');
+      const result = await controller.execute({ ...command, sender });
+      if (result?.message) say(result.message);
+      else if (command.type === 'status') say(`Online em ${host}:${port}${result.following ? `, seguindo ${result.following}` : ''}.`);
+    } catch (error) { say(error.message); }
   });
-
-  bot.on('kicked', (reason) => console.error('Bot kicked:', reason));
-  bot.on('error', (error) => console.error('Bot error:', error.message));
-  bot.on('end', () => {
-    console.error(`Bot disconnected; reconnecting in ${reconnectMs}ms`);
-    setTimeout(connect, reconnectMs);
-  });
+  bot.on('kicked', reason => console.error('Bot kicked:', reason));
+  bot.on('error', error => console.error('Bot error:', error.message));
+  bot.on('end', () => { console.error(`Bot disconnected; reconnecting in ${reconnectMs}ms`); setTimeout(connect, reconnectMs); });
 }
 
+if (process.env.RCON_HOST && process.env.RCON_PASSWORD) rcon = new RconClient({ host: process.env.RCON_HOST, port: Number(process.env.RCON_PORT ?? 25575), password: process.env.RCON_PASSWORD });
+startControlApi();
 connect();
+
+export { connect };
