@@ -5,6 +5,7 @@ import { BotController } from './controller.js';
 import { createControlServer } from './control-api.js';
 import { RconClient } from './rcon.js';
 import { configureSafeMovements } from './movement.js';
+import { createLanguagePlanner } from './planner.js';
 
 const { pathfinder, Movements, goals } = pathfinderPackage;
 const host = process.env.MC_HOST ?? '161.97.115.217';
@@ -18,6 +19,16 @@ let bot;
 let controller;
 let controlServer;
 let rcon;
+const planner = createLanguagePlanner();
+
+function gameState() {
+  const status = controller?.status?.() ?? { online: false };
+  return {
+    ...status,
+    position: bot?.entity?.position ? { x: bot.entity.position.x, y: bot.entity.position.y, z: bot.entity.position.z } : null,
+    inventory: controller?.inventoryCounts?.() ?? {}
+  };
+}
 
 function say(message) { if (bot?.player) bot.chat(String(message).slice(0, 240)); }
 
@@ -25,6 +36,8 @@ function startControlApi() {
   if (!process.env.CONTROL_API_KEY) { console.warn('CONTROL_API_KEY is not set; HTTP control API is disabled.'); return; }
   controlServer = createControlServer({
     apiKey: process.env.CONTROL_API_KEY,
+    planner,
+    getGameState: gameState,
     getStatus: () => controller?.status() ?? { online: false },
     executeCommand: async (command) => {
       if (['time', 'weather', 'difficulty', 'teleport', 'whitelist'].includes(command.type)) {
@@ -49,9 +62,21 @@ function connect() {
   bot.on('entitySpawn', entity => controller.onEntitySpawn(entity));
   bot.on('chat', async (sender, message) => {
     if (sender === bot.username) return;
-    const command = parseChatCommand(message, username);
-    if (!command) return;
     if (owner && sender.toLowerCase() !== owner) { say(`${sender}, só aceito comandos do meu dono.`); return; }
+    const command = parseChatCommand(message, username);
+    if (!command) {
+      if (!process.env.HERMES_API_URL || !process.env.HERMES_API_KEY) return;
+      const planned = await planner.plan({ owner: sender, request: String(message).slice(0, 600), gameState: gameState() });
+      if (!planned.ok) return say('Não consegui planejar esse pedido com segurança.');
+      if (planned.command && planned.requiresConfirmation) return say(`${planned.reply || 'Tenho uma proposta.'} Confirme pelo POST /command autenticado.`);
+      if (planned.command && planner.safeCommands.has(planned.command.type)) {
+        try {
+          const result = await controller.execute({ ...planned.command, sender });
+          return say(result?.message || planned.reply || 'Concluído.');
+        } catch (error) { return say(error.message); }
+      }
+      return say(planned.reply || 'Não tenho uma ação segura para esse pedido.');
+    }
     if (command.requiresConfirmation) { say('Esse trabalho exige autorização explícita pela API HTTP autenticada.'); return; }
     try {
       if (command.type === 'help') return say('Comandos: siga [jogador], pare, venha, proteja, encontre diamantes, status. Coleta/construção: API autenticada com confirmação.');
