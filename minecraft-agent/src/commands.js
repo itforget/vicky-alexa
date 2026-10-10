@@ -25,7 +25,7 @@ export function parseChatCommand(message, botName = 'vicky') {
   if (/^(proteja|proteger|proteção|protecao|protect)$/.test(command)) return { type: 'protect' };
   if (/^(?:encontre|procure|ache) diamantes?$/.test(command)) return { type: 'find_diamonds', visibleOnly: true };
   const collect = command.match(/^(?:colete|coletar|collect)\s+(.+)$/);
-  if (collect && RESOURCE_NAMES.has(collect[1])) return { type: 'collect_resource', resource: collect[1], requiresConfirmation: true };
+  if (collect && RESOURCE_NAMES.has(collect[1])) return { type: 'collect_resource', resource: collect[1], requiresConfirmation: false };
   if (/^(?:construa|construir|build)(?: uma)? casa(?: pequena)?$/.test(command)) return { type: 'build_house', requiresConfirmation: true };
   return null;
 }

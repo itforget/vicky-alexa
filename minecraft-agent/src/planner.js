@@ -1,6 +1,6 @@
 import { isAllowedControlCommand, requiresConfirmation } from './control-api.js';
 
-const SAFE_PLANNER_COMMANDS = new Set(['status', 'follow', 'stop', 'come', 'protect', 'find_diamonds']);
+const SAFE_PLANNER_COMMANDS = new Set(['status', 'follow', 'stop', 'come', 'protect', 'find_diamonds', 'collect_resource']);
 const MAX_REQUEST_LENGTH = 600;
 const MAX_REPLY_LENGTH = 600;
 const COMMAND_KEYS = {

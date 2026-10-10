@@ -73,7 +73,7 @@ function connect() {
       const planned = await planner.plan({ owner: sender, request: String(message).slice(0, 600), gameState: gameState() });
       if (epoch !== commandEpoch) return;
       if (!planned.ok) return say('Não consegui planejar esse pedido com segurança.');
-      if (planned.command && planned.requiresConfirmation) return say(`${planned.reply || 'Tenho uma proposta.'} Confirme pelo POST /command autenticado.`);
+      if (planned.command && planned.requiresConfirmation && planned.command.type !== 'collect_resource') return say(`${planned.reply || 'Tenho uma proposta.'} Confirme pelo POST /command autenticado.`);
       if (planned.command && planner.safeCommands.has(planned.command.type)) {
         try {
           const result = await controller.execute({ ...planned.command, sender });
@@ -84,7 +84,7 @@ function connect() {
     }
     if (command.requiresConfirmation) { say('Esse trabalho exige autorização explícita pela API HTTP autenticada.'); return; }
     try {
-      if (command.type === 'help') return say('Comandos: siga [jogador], pare, venha, proteja, encontre diamantes, status. Coleta/construção: API autenticada com confirmação.');
+      if (command.type === 'help') return say('Comandos: siga [jogador], pare, venha, proteja, encontre diamantes, status e colete [recurso]. Construção e administração continuam pela API autenticada.');
       const result = await controller.execute({ ...command, sender });
       if (result?.message) say(result.message);
       else if (command.type === 'status') say(`Online em ${host}:${port}${result.following ? `, seguindo ${result.following}` : ''}.`);

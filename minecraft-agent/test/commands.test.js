@@ -16,12 +16,12 @@ test('parses protect and visible diamond search without promising xray', () => {
 
 test('marks resource collection and house building as explicitly authorized jobs', () => {
   assert.deepEqual(parseChatCommand('Vicky colete ferro'), {
-    type: 'collect_resource', resource: 'ferro', requiresConfirmation: true
+    type: 'collect_resource', resource: 'ferro', requiresConfirmation: false
   });
   assert.deepEqual(parseChatCommand('Vicky construa uma casa pequena'), {
     type: 'build_house', requiresConfirmation: true
   });
-  assert.equal(parseChatCommand('Vicky colete ferro').requiresConfirmation, true);
+  assert.equal(parseChatCommand('Vicky colete ferro').requiresConfirmation, false);
 });
 
 test('does not treat arbitrary or administrative chat text as a command', () => {
