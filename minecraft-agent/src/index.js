@@ -19,6 +19,7 @@ let bot;
 let controller;
 let controlServer;
 let rcon;
+let commandEpoch = 0;
 const planner = createLanguagePlanner();
 
 function gameState() {
@@ -40,6 +41,7 @@ function startControlApi() {
     getGameState: gameState,
     getStatus: () => controller?.status() ?? { online: false },
     executeCommand: async (command) => {
+      if (command.type === 'stop') commandEpoch += 1;
       if (['time', 'weather', 'difficulty', 'teleport', 'whitelist'].includes(command.type)) {
         if (!rcon) throw new Error('RCON is not configured.');
         return rcon.execute(command);
@@ -61,12 +63,15 @@ function connect() {
   });
   bot.on('entitySpawn', entity => controller.onEntitySpawn(entity));
   bot.on('chat', async (sender, message) => {
-    if (sender === bot.username) return;
-    if (owner && sender.toLowerCase() !== owner) { say(`${sender}, só aceito comandos do meu dono.`); return; }
+    if (sender === bot.username || !/^vicky(?:agent)?(?:\s|,|$)/i.test(message.trim())) return;
+    if (owner && sender.toLowerCase() !== owner) return;
     const command = parseChatCommand(message, username);
+    if (command?.type === 'stop') commandEpoch += 1;
     if (!command) {
       if (!process.env.HERMES_API_URL || !process.env.HERMES_API_KEY) return;
+      const epoch = commandEpoch;
       const planned = await planner.plan({ owner: sender, request: String(message).slice(0, 600), gameState: gameState() });
+      if (epoch !== commandEpoch) return;
       if (!planned.ok) return say('Não consegui planejar esse pedido com segurança.');
       if (planned.command && planned.requiresConfirmation) return say(`${planned.reply || 'Tenho uma proposta.'} Confirme pelo POST /command autenticado.`);
       if (planned.command && planner.safeCommands.has(planned.command.type)) {
