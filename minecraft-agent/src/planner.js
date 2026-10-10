@@ -56,7 +56,7 @@ function compactState(state = {}) {
   };
 }
 
-export function createLanguagePlanner({ apiUrl = process.env.HERMES_API_URL, apiKey = process.env.HERMES_API_KEY, fetchImpl = fetch, timeoutMs = 5000, maxQueue = 2, rateLimit = 6, rateWindowMs = 60_000 } = {}) {
+export function createLanguagePlanner({ apiUrl = process.env.HERMES_API_URL, apiKey = process.env.HERMES_API_KEY, fetchImpl = fetch, timeoutMs = Number(process.env.PLANNER_TIMEOUT_MS || 45000), maxQueue = 2, rateLimit = 6, rateWindowMs = 60_000 } = {}) {
   const queues = new Map();
   function ownerState(owner) {
     const key = String(owner || 'unknown').toLowerCase().slice(0, 64);

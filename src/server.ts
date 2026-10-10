@@ -1,4 +1,5 @@
 import express from 'express';
+import {minecraftBridge} from './minecraft-bridge.js';
 import {ExpressAdapter} from 'ask-sdk-express-adapter';
 import {
   ErrorHandler,
@@ -9,6 +10,7 @@ import {
 } from 'ask-sdk-core';
 
 const app = express();
+app.use('/minecraft', minecraftBridge);
 const port = Number(process.env.PORT ?? 3011);
 const hermesUrl = (process.env.HERMES_API_URL ?? 'http://127.0.0.1:8642').replace(/\/$/, '');
 const hermesKey = process.env.HERMES_API_KEY;
